@@ -1,0 +1,100 @@
+-- Examining the survey dataset 
+SELECT *
+ FROM survey
+ LIMIT 10;
+ 
+-- What is the number of responses for each question?
+SELECT question, COUNT(*)
+FROM survey
+GROUP BY question
+ORDER BY 1;
+
+-- Using a spreadsheet program, calculate the completion rate of each question (100%, 95%, 76%, 72.2%, 54%)
+
+-- What is the reason for this? The questions become increasingly specific and people get less and less certain about these answers. There is a greater drop from question 4 to 5 perhaps because many people do not know when their last eye exam was. However a quick check (below) shows that there is a "Not Sure. Let's Skip It" response option which should have helped with the response rates. 
+
+SELECT DISTINCT response
+FROM survey
+WHERE question LIKE '%5%';
+
+-- Explore the purchase funnel
+SELECT *
+FROM quiz
+LIMIT 5;
+
+SELECT *
+FROM home_try_on
+LIMIT 5;
+
+SELECT *
+FROM purchase
+LIMIT 5;
+
+-- Create a new table with the three tables joined 
+WITH consolidated_table AS (
+  SELECT DISTINCT q.user_id, 
+  h.user_id IS NOT NULL AS 'is_home_try_on', 
+  h.number_of_pairs, 
+  p.user_id IS NOT NULL AS 'is_purchase'
+FROM quiz q
+LEFT JOIN home_try_on h
+  ON q.user_id = h.user_id
+LEFT JOIN purchase p
+  ON q.user_id = p.user_id
+)
+
+-- Gather general insights about purchase funnel behaviour:
+SELECT COUNT(*) AS 'num_browse', 
+  SUM(is_purchase) AS 'num_purchase', 
+  1.0 * SUM(is_purchase) / COUNT(user_id) AS 'browse_to_purchase', 
+  1.0 * SUM(is_purchase) / SUM(is_home_try_on) AS 'try_to_purcahse'
+  FROM consolidated_table;
+
+-- When customers tried 5 pairs of glasses, they were more likely to purchase (purchase rate of 79% vs 53% for 3 pairs)
+WITH consolidated_table AS (
+  SELECT DISTINCT q.user_id, 
+  h.user_id IS NOT NULL AS 'is_home_try_on', 
+  h.number_of_pairs, 
+  p.user_id IS NOT NULL AS 'is_purchase'
+FROM quiz q
+LEFT JOIN home_try_on h
+  ON q.user_id = h.user_id
+LEFT JOIN purchase p
+  ON q.user_id = p.user_id
+)
+SELECT number_of_pairs,
+  COUNT(*) AS 'num_browse', 
+  SUM(is_purchase) AS 'num_purchase',  
+  1.0 * SUM(is_purchase) / SUM(is_home_try_on) AS 'try_to_purcahse'
+  FROM consolidated_table
+  GROUP BY 1;
+
+-- There are almost equal number of female and male customers. So their customer base is very balanced. This information can help guide marketing and sales strategies. 
+SELECT style, 
+  COUNT(*)
+FROM purchase
+GROUP BY style
+ORDER BY style;
+
+-- Eugene Narrow is the most popular Women's style and Dawes is the most popular Men's style. Perhaps consider discontinuing Olive and Monocle styles to lower costs.
+SELECT style,
+  model_name, 
+  COUNT(*)
+FROM purchase
+GROUP BY 2
+ORDER BY 3 DESC;
+
+-- These are the sales for each colour for each model. We have no information on the number of colours offered for each model but if there are more than the number listed, then the other colours should be discontinued to save on manufacturing and inventory costs.
+SELECT model_name,
+  color,
+  COUNT(*)
+FROM purchase
+GROUP BY 2
+ORDER BY 3 DESC;
+
+SELECT style,
+  price, 
+  COUNT(*)
+FROM purchase
+GROUP BY 2
+ORDER BY 3 DESC;
